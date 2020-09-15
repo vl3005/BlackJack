@@ -7,43 +7,48 @@ import tkinter.font as font
 
 import winsound as PlaySound
 
-LOSE_COLOR = '#453841'
-WIN_COLOR = '#FFD800'
-FELT_COLOR = '#339933'
-RESULT_LOSE_COLOR = "#990000"
-RESULT_WIN_COLOR = 'gold'
-RESULT_BG_COLOR = "navy"
-NAT_DELAY_TIME = 1300
-dealerstand_score = 17
-hand_is_soft = False
-dealer_hits_on_soft = True
-deck_ready = True
-player_bj = False
-card_back_image = ''
-hole_card = ''
-first_card_obj = ''
-card_frame_height = 0
-no_of_backs = 0
-chosen_deck = 1
-available_decks = {
-    1: ("aqua", 13, 139, 90 * 6 + 110),
-    2: ("casino", 2, 184, 130 * 6 + 110),
-    3: ("newwave", 6, 124, 79 * 6 + 110)
-}
-
-if tkinter.TkVersion >= 8.6:
+if tkinter.TkVersion >= 8.6:  # tkinter version above 8.6 supports png files
     extension = 'png'
 else:
     extension = 'ppm'
+
+LOSE_COLOR = '#453841'  # The score digits color in case the player loses
+WIN_COLOR = '#FFD800'  # The score digits color in case the player win
+FELT_COLOR = '#339933'  # The color of the table felt
+RESULT_BG_COLOR = "navy"  # Background color of the result label
+RESULT_LOSE_COLOR = "#990000"  # Background color of result label if the player loses
+RESULT_WIN_COLOR = 'gold'  # Background color of result label if the player wins
+NAT_DELAY_TIME = 1300  # Natural delay time between result label updates
+dealerstand_score = 17  # The score in which the dealer can't hit anymore
+hand_is_soft = False  # True if a hand contains a soft ace (Value of 11)
+dealer_hits_on_soft = True  # True if dealer can hit on Soft 17
+deck_ready = True  # False if the deck was dealt, not shuffled
+player_bj = False  # True if the player got Blackjack
+card_back_image = ''  # Handler for the cards deck back graphic
+hole_card = ''  # Handler for dealer's hole card
+first_card_obj = ''  # Handler for dealer's hold card label
+card_frame_height = 0  # Handler for both card rows
+no_of_backs = 0  # Number of backs pictures provided in each set
+chosen_deck = 3  # The deck chosen in options by the player, assigned below
+wanted_window_width = 0  # Wanted window width dependant on the chosen deck
+available_decks = {  # Dictionary containing all decks assigned by:
+    # (Name for filepath, no_of_backs, card_frame_height,
+    # wanted_window_width)
+    1: ("aqua", 13, 139, 90 * 6 + 110),
+    2: ("casino", 2, 184, 130 * 6 + 110),
+    3: ("newwave", 6, 124, 79 * 6 + 110),
+    4: ("origin", 4, 111, 74 * 7 + 110)
+    }
 
 
 def load_chosen_set(card_images):
     global no_of_backs
     global card_frame_height
+    global wanted_window_width
     no_of_backs = available_decks[chosen_deck][1]
     card_frame_height = available_decks[chosen_deck][2]
-
-    suits = {'H': 'heart', 'C': 'club', 'D': 'diamond', 'S': 'spade'}
+    wanted_window_width = available_decks[chosen_deck][3]
+    suits = {'H': 'hearts', 'C': 'clubs', 'D': 'diamonds', 'S': 'spades'}
     card_names = {
         1: 'ace',
         2: 'two',
@@ -128,7 +133,7 @@ def clear_table():
         shuffle_button['text'] = 'Round in\nSession.'
 
 
-def reset_game():
+def new_round():
     global deck
 
     global deck_ready
@@ -198,10 +203,10 @@ def flip_hole_card():
     mainWindow.after(300, mainWindow.update())
     first_card_obj['image'] = hole_card[1]
     if hole_card[0] == 1:
-        result_text.set("Dealer's hole was a {} of {}S. Value of 11."
+        result_text.set("Dealer's hole was the {} of {}. Value of 11."
                         .format(hole_card[3], hole_card[2]))
     else:
-        result_text.set("Dealer's hole card was a {} of {}S. Value of {}."
+        result_text.set("Dealer's hole card was the {} of {}. Value of {}."
                         .format(hole_card[3], hole_card[2], hole_card[0]))
     dealer_score = score_hand(dealer_hand)
     dealer_score_label.set(dealer_score)
@@ -226,9 +231,10 @@ def deal_dealer():
     while 0 < dealer_score <= dealerstand_score:
         if dealer_score == dealerstand_score:
             if dealer_hits_on_soft and hand_is_soft:
-                pass
+                result_text.set("Soft {}. Dealer must keep hitting.".format(dealerstand_score))
+                mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
             else:
-                result_text.set("Dealer must stand on {}.".format(dealer_score))
+                result_text.set("Dealer will stand on or above {}.".format(dealerstand_score))
                 mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
                 break
         next_card = deal_card(dealer_card_frame, dealer_hand)
@@ -237,7 +243,7 @@ def deal_dealer():
         dealer_score_label.set(dealer_score)
         mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
     if 21 > dealer_score > dealerstand_score:
-        result_text.set("Dealer will stand on {}.".format(dealer_score))
+        result_text.set("Dealer will stand on or above {}.".format(dealerstand_score))
         mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
     player_score = score_hand(player_hand)
     check_final(player_score, dealer_score)
@@ -289,19 +295,16 @@ def update_notif(whos_hand, next_card):
         name = "You were dealt"
     else:
         name = "Dealer drew"
-
-    if next_card[0] == 8:
-        result_text.set("{} an {} of {}S. Value of {}."
-                        .format(name, next_card[3], next_card[2], next_card[0]))
-    elif next_card[0] == 1:
+    
+    if next_card[0] == 1:
         if check_for_ace(whos_hand) >= 1:
-            result_text.set("{} an {} of {}S. Value of 1."
+            result_text.set("{} the {} of {}. Value of 1."
                             .format(name, next_card[3], next_card[2]))
         else:
-            result_text.set("{} an {} of {}S. Value of {}."
+            result_text.set("{} the {} of {}. Value of {}."
                             .format(name, next_card[3], next_card[2], 11))
     else:
-        result_text.set("{} a {} of {}S. Value of {}."
+        result_text.set("{} the {} of {}. Value of {}."
                         .format(name, next_card[3], next_card[2], next_card[0]))
 
 
@@ -392,6 +395,7 @@ def first_play():
     player_hand = []
     dealer_hand = []
     deck_ready = False
+    load_back_of_card()
     deal_player()
     next_card = deal_card(dealer_card_frame, dealer_hand)
     dealer_hand.append(next_card)
@@ -400,10 +404,10 @@ def first_play():
     else:
         dealer_score_label.set(next_card[0])
     if not next_card[3] == 'ACE':
-        result_text.set("Dealer drew a {} of {}S. With a value of {}."
+        result_text.set("Dealer drew the {} of {}. With a value of {}."
                         .format(next_card[3], next_card[2], next_card[0]))
     else:
-        result_text.set("Dealer drew a {} of {}S. With a value of 11."
+        result_text.set("Dealer drew the {} of {}. With a value of 11."
                         .format(next_card[3], next_card[2]))
     mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
     deal_player()
@@ -445,12 +449,10 @@ def shuffle():
     # for i in range(1, 8):
     #     load_back_of_card()
     #     deck.insert(0, (0, card_back_image, ' sff', 'ace'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'ace'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'FIVE'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'ACfffeE'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'TEN'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'efe'))
-    # deck.insert(0, (0, card_back_image, ' sff', 'ACE'))
+    # deck.insert(0, (6, card_back_image, ' sff', 'ACfffeE'))
+    # deck.insert(0, (10, card_back_image, ' sff', 'TEN'))
+    # deck.insert(0, (1, card_back_image, ' sff', 'efe'))
+    # deck.insert(0, (1, card_back_image, ' sff', 'ACE'))
     first_play()
 
 
@@ -468,6 +470,13 @@ def start_game():
     mainWindow.mainloop()
 
 
+def say_goodbye():
+    disable_buttons()
+    result_text.set("Goodbye! See you next time! :)")
+    mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
+    mainWindow.quit()
+
+
 dealer_hand = []
 player_hand = []
 cards = []
@@ -483,7 +492,7 @@ default_font = font.nametofont("TkTextFont")
 default_font.configure(family='Helvetica')
 mainWindow.option_add("*Font", default_font)
 load_chosen_set(cards)
-load_back_of_card()
+deck = list(cards)
 # Drawing the top line
 result_text = tkinter.StringVar()
 result_text.set("Welcome to the BLACKJACK table!")
@@ -536,30 +545,28 @@ shuffle_button = tkinter.Button(button_frame, text='Shuffling...\nPlease wait',
                                 command=shuffle, state='disabled',
                                 width=10, font=font.Font(size=12))
 shuffle_button.grid(row=0, column=0, rowspan=3, sticky='nws')
-stand_button = tkinter.Button(button_frame, text='S',
+stand_button = tkinter.Button(button_frame, text='STAND',
                               command=deal_dealer)
 stand_button.grid(row=0, column=1, sticky='ew')
-hit_button = tkinter.Button(button_frame, text='H',
+hit_button = tkinter.Button(button_frame, text='HIT',
                             command=deal_player)
 hit_button.grid(row=0, column=2, sticky='ew')
-new_game = tkinter.Button(button_frame, text='New Round', command=reset_game)
+new_game = tkinter.Button(button_frame, text='Keep playing', command=new_round)
 new_game.grid(row=1, column=1, columnspan=2, sticky='ew')
-leave_button = tkinter.Button(button_frame, text='Leave Table', command=mainWindow.quit)
+leave_button = tkinter.Button(button_frame, text='Leave Table', command=say_goodbye)
 leave_button.grid(row=2, column=1, columnspan=2, sticky='ew')
 leave_button.place()
 button_frame.columnconfigure(1, minsize=20)
 button_frame.columnconfigure(2, minsize=20)
 
 mainWindow.update()
-mainWindow.minsize(available_decks[chosen_deck][3],
+mainWindow.minsize(wanted_window_width,
                    button_frame.winfo_height() + result.winfo_height() +
                    5 + int(card_frame_height * 2))
-mainWindow.maxsize(available_decks[chosen_deck][3],
+mainWindow.maxsize(wanted_window_width,
                    button_frame.winfo_height() + result.winfo_height() +
                    5 + int(card_frame_height * 2))
 mainWindow.update()
-
-deck = list(cards)
 
 if __name__ == "__main__":
     start_game()

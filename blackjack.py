@@ -29,7 +29,7 @@ hole_card = ''  # Handler for dealer's hole card
 first_card_obj = ''  # Handler for dealer's hold card label
 card_frame_height = 0  # Handler for both card rows
 no_of_backs = 0  # Number of backs pictures provided in each set
-chosen_deck = 3  # The deck chosen in options by the player, assigned below
+chosen_deck = 1  # The deck chosen in options by the player, assigned below
 wanted_window_width = 0  # Wanted window width dependant on the chosen deck
 available_decks = {  # Dictionary containing all decks assigned by:
     # (Name for filepath, no_of_backs, card_frame_height,
@@ -38,7 +38,8 @@ available_decks = {  # Dictionary containing all decks assigned by:
     2: ("casino", 2, 184, 130 * 6 + 110),
     3: ("newwave", 6, 124, 79 * 6 + 110),
     4: ("origin", 4, 111, 74 * 7 + 110)
-    }
+}
+counted = {}
 
 
 def load_chosen_set(card_images):
@@ -48,32 +49,32 @@ def load_chosen_set(card_images):
     no_of_backs = available_decks[chosen_deck][1]
     card_frame_height = available_decks[chosen_deck][2]
     wanted_window_width = available_decks[chosen_deck][3]
-    suits = {'H': 'hearts', 'C': 'clubs', 'D': 'diamonds', 'S': 'spades'}
+    suits = {'H': '♥', 'C': '♣', 'D': '♦', 'S': '♠'}
     card_names = {
-        1: 'ace',
-        2: 'two',
-        3: 'three',
-        4: 'four',
-        5: 'five',
-        6: 'six',
-        7: 'seven',
-        8: 'eight',
-        9: 'nine',
-        10: 'ten',
-        11: 'jack',
-        12: 'queen',
-        13: 'king'}
+        1: 'A',
+        2: '2',
+        3: '3',
+        4: '4',
+        5: '5',
+        6: '6',
+        7: '7',
+        8: '8',
+        9: '9',
+        10: '10',
+        11: 'J',
+        12: 'Q',
+        13: 'K'}
 
     for suit in suits:
-        for card in range(1, 10):
+        for card in range(1, 3):
             name = 'decks\\{}\\{}0{}.{}'.format(available_decks[chosen_deck][0], suit, str(card), extension)
             image = tkinter.PhotoImage(file=name)
-            card_images.append((card, image, str(suits[suit]).upper(), card_names[card].upper()))
+            card_images.append({0: card, 1: image, 2: suits[suit], 3: card_names[card].upper(), 4: False})
 
-        for card in range(11, 14):
+        for card in range(10, 11):
             name = 'decks\\{}\\{}{}.{}'.format(available_decks[chosen_deck][0], suit, str(card), extension)
             image = tkinter.PhotoImage(file=name)
-            card_images.append((10, image, str(suits[suit]).upper(), card_names[card].upper()))
+            card_images.append({0: 10, 1: image, 2: suits[suit], 3: card_names[card].upper(), 4: False})
 
 
 def load_back_of_card():
@@ -98,6 +99,28 @@ def reenable_buttons():
     mainWindow.update()
 
 
+def working_dots():
+    """
+    Creates the cool process bar like dots on the big button.
+    Lasts 2.75 seconds while sounds are playing.
+    :return:
+    """
+    shuffle_button['text'] = shuffle_button['text'] + '\n'
+    for i in range(1, 12):
+        shuffle_button['text'] = shuffle_button['text'] + '.'
+        mainWindow.after(250, mainWindow.update())
+
+
+def move_to_discard_pile():
+    for i in range(len(deck) - 1, -1, -1):
+        if deck[i][4]:
+            deck[i][4] = False
+            discard_pile.append(deck[i])
+            deck.pop(i)
+    print("{}\n{}".format(len(deck), len(discard_pile)))
+    row_counter = 0
+
+
 def clear_table():
     global dealer_hand
     global player_hand
@@ -105,6 +128,7 @@ def clear_table():
     global player_card_frame
     global player_bj
     player_bj = False
+    move_to_discard_pile()
     dealer_card_frame.destroy()
     player_card_frame.destroy()
     dealer_card_frame = tkinter.Frame(card_frame, height=card_frame_height, background=FELT_COLOR)
@@ -119,23 +143,37 @@ def clear_table():
     player_score_no['fg'] = 'white'
     dealer_score_no["font"] = font.Font(size=18)
     player_score_no["font"] = font.Font(size=18)
-    result_text.set("Welcome to the BLACKJACK table!")
+    result_text.set("🂡 Welcome to the BLACKJACK table! 🂫")
     disable_buttons()
     mainWindow.after(150, mainWindow.update())
     if not deck_ready:
         PlaySound.PlaySound('sounds\\cardClear.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
-        shuffle_button['text'] = 'Clearing\nthe Table.'
-        mainWindow.after(800, mainWindow.update())
-        shuffle_button['text'] = 'Clearing\nthe Table..'
-        mainWindow.after(800, mainWindow.update())
-        shuffle_button['text'] = 'Clearing\nthe Table...'
-        mainWindow.after(1400, mainWindow.update())
-        shuffle_button['text'] = 'Round in\nSession.'
+        shuffle_button['text'] = 'Clearing\nthe Table'
+        working_dots()
+        shuffle_button['text'] = "Round in\nSession"
+
+
+def reset_counted():
+    global counted
+    counted = {
+        'A': '4',
+        '2': '4',
+        # '3': '4',
+        # '4': '4',
+        # '5': '4',
+        # '6': '4',
+        # '7': '4',
+        # '8': '4',
+        # '9': '4',
+        '10': '4',
+        # 'J': '4',
+        # 'Q': '4',
+        # 'K': '4'
+    }
 
 
 def new_round():
     global deck
-
     global deck_ready
     global dealer_hand
     global player_hand
@@ -147,15 +185,82 @@ def new_round():
     disable_buttons()
     shuffle_button['command'] = shuffle
     deck_ready = False
+    secondWindow.update()
     clear_table()
     # Deal first cards
     first_play()
 
 
+def refill_deck():
+    deck_is_empty = True
+    for card in deck:
+        # go through the deck and see if the 4th index of all the cards
+        # (a boolean that is true if the card was already dealt or not)
+        # is true, if so, that means that all the cards were dealt and
+        # a new deck is made from the discard pile (all the cards that
+        # were already dealt and are not in this current round)
+        # as soon as the first undealt card is found (4th index is
+        # false) deck_is_empty is made false, and the loop is broken
+        # to stop looking for more undealt cards.
+        if not card[4]:
+            deck_is_empty = False
+            break
+    if deck_is_empty:
+        reset_counted()
+        random.shuffle(discard_pile)
+        for card in discard_pile:
+            deck.insert(0, card)
+        for card in deck:
+            if card[4]:
+                counted[card[3]] = str(int(counted[card[3]]) - 1)
+        discard_pile.clear()
+        disable_buttons()
+        print(discard_pile, '\ndiscard_pile is shuffled')
+        result_text.set('Deck has emptied! Shuffling the discard pile.')
+        shuffle_button['text'] = 'Shuffling'
+        PlaySound.PlaySound('sounds\\riffle{}.wav'.format(random.randint(1, 4)),
+                            PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+        working_dots()
+        PlaySound.PlaySound('sounds\\cardShuffle.wav',
+                            PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+        shuffle_button['text'] = 'Shuffling'
+        working_dots()
+        shuffle_button['text'] = 'Round in\nSession'
+        secondWindow.update()
+        reenable_buttons()
+        mainWindow.update()
+
+
+def cheat_sheet(card):
+    counted[card[3]] = str(int(counted[card[3]]) - 1)
+    row_counter = 0
+    for key, value in counted.items():
+        tkinter.Label(secondWindow, text="{} : {}".format(key, value),
+                      background=RESULT_BG_COLOR, fg='white') \
+            .grid(column=0, row=row_counter, sticky='n')
+        secondWindow.update()
+        row_counter += 1
+    total = 0
+    for value in counted.values():
+        total += int(value)
+    tkinter.Label(secondWindow, text="{} cards left unknown.".format(total),
+                  background=RESULT_BG_COLOR, fg='white') \
+        .grid(column=0, row=row_counter, sticky='n')
+    row_counter += 1
+    refill_deck()
+    tkinter.Label(secondWindow, text="Next card will be the {}{}".format(deck[0][3], deck[0][2]),
+                  background=RESULT_BG_COLOR, fg='white') \
+        .grid(column=0, row=row_counter, sticky='n')
+    secondWindow.update()
+
+
 def deal_card(frame, hand):
+    refill_deck()
     # pop the next card off the top of the deck
     next_card = deck.pop(0)
+    next_card[4] = True
     deck.append(next_card)
+    cheat_sheet(next_card)
     # add the image to a label and display the label
     PlaySound.PlaySound('sounds\\cardPlace{}.wav'.format(random.randint(1, 13)),
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
@@ -203,10 +308,10 @@ def flip_hole_card():
     mainWindow.after(300, mainWindow.update())
     first_card_obj['image'] = hole_card[1]
     if hole_card[0] == 1:
-        result_text.set("Dealer's hole was the {} of {}. Value of 11."
+        result_text.set("Dealer's hole was the {}{}. Value of 11."
                         .format(hole_card[3], hole_card[2]))
     else:
-        result_text.set("Dealer's hole card was the {} of {}. Value of {}."
+        result_text.set("Dealer's hole card was the {}{}. Value of {}."
                         .format(hole_card[3], hole_card[2], hole_card[0]))
     dealer_score = score_hand(dealer_hand)
     dealer_score_label.set(dealer_score)
@@ -295,16 +400,16 @@ def update_notif(whos_hand, next_card):
         name = "You were dealt"
     else:
         name = "Dealer drew"
-    
+
     if next_card[0] == 1:
         if check_for_ace(whos_hand) >= 1:
-            result_text.set("{} the {} of {}. Value of 1."
+            result_text.set("{} the {}{}. Value of 1."
                             .format(name, next_card[3], next_card[2]))
         else:
-            result_text.set("{} the {} of {}. Value of {}."
+            result_text.set("{} the {}{}. Value of {}."
                             .format(name, next_card[3], next_card[2], 11))
     else:
-        result_text.set("{} the {} of {}. Value of {}."
+        result_text.set("{} the {}{}. Value of {}."
                         .format(name, next_card[3], next_card[2], next_card[0]))
 
 
@@ -320,7 +425,7 @@ def deal_player():
         if player_score == 21:
             disable_buttons()
             mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
-            result_text.set("21! Congratulations! Dealer will now play his turn.")
+            result_text.set("21! Congratulations! Dealer will now try to match.")
             player_score_no['fg'] = WIN_COLOR
             mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
             deal_dealer()
@@ -339,21 +444,6 @@ def deal_player():
             reenable_buttons()
             hit_button['state'] = 'disabled'
             stand_button['state'] = 'disabled'
-
-    # global player_score
-    # global player_ace
-    # card_value = deal_card(player_card_frame)[0]
-    # if card_value == 1 and not player_ace:
-    #     card_value = 11
-    #     player_ace = True
-    # player_score += card_value
-    # # if we would bust, check if there's an ace and subtract 10
-    # if player_score > 21 and player_ace:
-    #     player_score -= 10
-    #     player_score = False
-    # player_score_label.set(player_score)
-    # if player_score > 21:
-    #     result_text.set('Player bust! Dealer wins!')
 
 
 def player_won():
@@ -403,17 +493,20 @@ def first_play():
         dealer_score_label.set(11)
     else:
         dealer_score_label.set(next_card[0])
-    if not next_card[3] == 'ACE':
-        result_text.set("Dealer drew the {} of {}. With a value of {}."
+    if not next_card[3] == 'A':
+        result_text.set("Dealer drew the {}{}. With a value of {}."
                         .format(next_card[3], next_card[2], next_card[0]))
     else:
-        result_text.set("Dealer drew the {} of {}. With a value of 11."
+        result_text.set("Dealer drew the {}{}. With a value of 11."
                         .format(next_card[3], next_card[2]))
     mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
     deal_player()
     if not player_bj:
+        refill_deck()
         hole_card = deck.pop(0)
+        hole_card[4] = True
         deck.append(hole_card)
+        cheat_sheet(hole_card)
         # add the card image to a label and display the label while playing
         # a card place sound
         PlaySound.PlaySound('sounds\\cardPlace{}.wav'.format(random.randint(1, 5)),
@@ -426,7 +519,7 @@ def first_play():
         reenable_buttons()
         shuffle_button['state'] = new_game['state'] = 'disabled'
     else:
-        result_text.set("Blackjack! Congratulations! Dealer will now continue his play.")
+        result_text.set("Blackjack! Congratulations! Dealer will now try to match.")
         disable_buttons()
         player_score_no['fg'] = WIN_COLOR
         mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
@@ -436,14 +529,21 @@ def first_play():
 def shuffle():
     global deck_ready
     disable_buttons()
-    random.shuffle(deck)
     clear_table()
-    shuffle_button['text'] = 'Shuffling...\nPlease wait'
-    # mainWindow.after(650, mainWindow.update())
-    # PlaySound.PlaySound('sounds\\riffle{}.wav'.format(random.randint(1, 4)),
-    #                     PlaySound.SND_FILENAME)
-    # PlaySound.PlaySound('sounds\\cardShuffle.wav', PlaySound.SND_FILENAME)
-    shuffle_button['text'] = 'Round in\nSession.'
+    for card in discard_pile:
+        deck.append(card)
+    discard_pile.clear()
+    reset_counted()
+    random.shuffle(deck)
+    shuffle_button['text'] = 'Shuffling'
+    PlaySound.PlaySound('sounds\\riffle{}.wav'.format(random.randint(1, 4)),
+                        PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+    working_dots()
+    PlaySound.PlaySound('sounds\\cardShuffle.wav',
+                        PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+    shuffle_button['text'] = 'Shuffling'
+    working_dots()
+    shuffle_button['text'] = 'Round in\nSession'
     deck_ready = True
     # ---- SOME CARDS APPENDED TO THE DECK TO CONTROL SCORE CHECK TESTS ----
     # for i in range(1, 8):
@@ -459,6 +559,7 @@ def shuffle():
 def start_game():
     global deck_ready
     disable_buttons()
+    reset_counted()
     PlaySound.PlaySound('sounds\\cardOpenPackage{}.wav'.format(random.randint(1, 2)),
                         PlaySound.SND_FILENAME)
     PlaySound.PlaySound('sounds\\cardTakeOutPackage{}.wav'.format(random.randint(1, 2)),
@@ -467,11 +568,15 @@ def start_game():
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     shuffle()
     deck_ready = False
+    secondWindow.update()
     mainWindow.mainloop()
+    secondWindow.mainloop()
 
 
 def say_goodbye():
     disable_buttons()
+    result['bg'] = "#bf40bf"
+    result['fg'] = "#99ccff"
     result_text.set("Goodbye! See you next time! :)")
     mainWindow.after(NAT_DELAY_TIME, mainWindow.update())
     mainWindow.quit()
@@ -483,6 +588,8 @@ cards = []
 
 # Set up the GUI  TODO: Make this a separate init_GUI function
 mainWindow = tkinter.Tk()
+secondWindow = tkinter.Tk()
+secondWindow.title("Counting cards!")
 mainWindow.title("Vit's Blackjack Table")
 mainWindow.geometry("750x200+265+100")
 mainWindow.grid_columnconfigure(0, weight=1)
@@ -493,6 +600,8 @@ default_font.configure(family='Helvetica')
 mainWindow.option_add("*Font", default_font)
 load_chosen_set(cards)
 deck = list(cards)
+discard_pile = []
+
 # Drawing the top line
 result_text = tkinter.StringVar()
 result_text.set("Welcome to the BLACKJACK table!")
@@ -541,7 +650,7 @@ button_frame = tkinter.Frame(mainWindow, relief='ridge', background=FELT_COLOR,
                              borderwidth='3')
 button_frame.grid(row=3, column=0, sticky='sw')
 
-shuffle_button = tkinter.Button(button_frame, text='Shuffling...\nPlease wait',
+shuffle_button = tkinter.Button(button_frame, text='Shuffling',
                                 command=shuffle, state='disabled',
                                 width=10, font=font.Font(size=12))
 shuffle_button.grid(row=0, column=0, rowspan=3, sticky='nws')
@@ -566,6 +675,9 @@ mainWindow.minsize(wanted_window_width,
 mainWindow.maxsize(wanted_window_width,
                    button_frame.winfo_height() + result.winfo_height() +
                    5 + int(card_frame_height * 2))
+secondWindow.minsize(200, 400)
+secondWindow.maxsize(200, 400)
+secondWindow.update()
 mainWindow.update()
 
 if __name__ == "__main__":

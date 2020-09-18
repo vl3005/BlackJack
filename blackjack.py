@@ -66,12 +66,12 @@ def load_chosen_set(card_images):
         13: 'K'}
 
     for suit in suits:
-        for card in range(1, 3):
+        for card in range(1, 10):
             name = 'decks\\{}\\{}0{}.{}'.format(available_decks[chosen_deck][0], suit, str(card), extension)
             image = tkinter.PhotoImage(file=name)
             card_images.append({0: card, 1: image, 2: suits[suit], 3: card_names[card].upper(), 4: False})
 
-        for card in range(10, 11):
+        for card in range(10, 14):
             name = 'decks\\{}\\{}{}.{}'.format(available_decks[chosen_deck][0], suit, str(card), extension)
             image = tkinter.PhotoImage(file=name)
             card_images.append({0: 10, 1: image, 2: suits[suit], 3: card_names[card].upper(), 4: False})
@@ -118,7 +118,6 @@ def move_to_discard_pile():
             discard_pile.append(deck[i])
             deck.pop(i)
     print("{}\n{}".format(len(deck), len(discard_pile)))
-    row_counter = 0
 
 
 def clear_table():
@@ -158,18 +157,28 @@ def reset_counted():
     counted = {
         'A': '4',
         '2': '4',
-        # '3': '4',
-        # '4': '4',
-        # '5': '4',
-        # '6': '4',
-        # '7': '4',
-        # '8': '4',
-        # '9': '4',
+        '3': '4',
+        '4': '4',
+        '5': '4',
+        '6': '4',
+        '7': '4',
+        '8': '4',
+        '9': '4',
         '10': '4',
-        # 'J': '4',
-        # 'Q': '4',
-        # 'K': '4'
+        'J': '4',
+        'Q': '4',
+        'K': '4'
     }
+    for card in deck:
+        if card[4]:
+            counted[card[3]] = str(int(counted[card[3]]) - 1)
+    row_counter = 0
+    for key, value in counted.items():
+        tkinter.Label(secondWindow, text="{} : {}".format(key, value),
+                      background=RESULT_BG_COLOR, fg='white') \
+            .grid(column=0, row=row_counter, sticky='n')
+        secondWindow.update()
+        row_counter += 1
 
 
 def new_round():
@@ -206,13 +215,11 @@ def refill_deck():
             deck_is_empty = False
             break
     if deck_is_empty:
-        reset_counted()
+
         random.shuffle(discard_pile)
         for card in discard_pile:
             deck.insert(0, card)
-        for card in deck:
-            if card[4]:
-                counted[card[3]] = str(int(counted[card[3]]) - 1)
+        reset_counted()
         discard_pile.clear()
         disable_buttons()
         print(discard_pile, '\ndiscard_pile is shuffled')
@@ -241,13 +248,13 @@ def cheat_sheet(card):
         secondWindow.update()
         row_counter += 1
     total = 0
+    refill_deck()
     for value in counted.values():
         total += int(value)
     tkinter.Label(secondWindow, text="{} cards left unknown.".format(total),
                   background=RESULT_BG_COLOR, fg='white') \
         .grid(column=0, row=row_counter, sticky='n')
     row_counter += 1
-    refill_deck()
     tkinter.Label(secondWindow, text="Next card will be the {}{}".format(deck[0][3], deck[0][2]),
                   background=RESULT_BG_COLOR, fg='white') \
         .grid(column=0, row=row_counter, sticky='n')
@@ -591,13 +598,9 @@ mainWindow = tkinter.Tk()
 secondWindow = tkinter.Tk()
 secondWindow.title("Counting cards!")
 mainWindow.title("Vit's Blackjack Table")
-mainWindow.geometry("750x200+265+100")
 mainWindow.grid_columnconfigure(0, weight=1)
 mainWindow.config(background=FELT_COLOR)
 # Load the images and create the deck
-default_font = font.nametofont("TkTextFont")
-default_font.configure(family='Helvetica')
-mainWindow.option_add("*Font", default_font)
 load_chosen_set(cards)
 deck = list(cards)
 discard_pile = []
@@ -669,16 +672,19 @@ button_frame.columnconfigure(1, minsize=20)
 button_frame.columnconfigure(2, minsize=20)
 
 mainWindow.update()
+mainWindow.geometry("{}x{}+265+100".format(wanted_window_width, button_frame.winfo_height() + result.winfo_height() +
+                                           5 + int(card_frame_height * 2)))
 mainWindow.minsize(wanted_window_width,
                    button_frame.winfo_height() + result.winfo_height() +
                    5 + int(card_frame_height * 2))
 mainWindow.maxsize(wanted_window_width,
                    button_frame.winfo_height() + result.winfo_height() +
                    5 + int(card_frame_height * 2))
-secondWindow.minsize(200, 400)
-secondWindow.maxsize(200, 400)
-secondWindow.update()
+print(mainWindow.winfo_height())
+secondWindow.geometry("180x{}+85+100".format(mainWindow.winfo_height()))
 mainWindow.update()
+secondWindow.update()
+print(secondWindow.winfo_reqheight())
 
 if __name__ == "__main__":
     start_game()

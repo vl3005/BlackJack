@@ -16,11 +16,12 @@ LOSE_COLOR = '#453841'  # The score digits color in case the player loses
 WIN_COLOR = '#FFD800'  # The score digits color in case the player win
 FELT_COLOR = '#339933'  # The color of the table felt
 RESULT_BG_COLOR = "navy"  # Background color of the result label
-ACTION_TIME = 25
-BTN_BG = '#ffecb3'
-PLAYERS_TURN = False
-timer_label = None
-ROUND_IN_SESSION = False
+ACTION_TIME = 24  # The time the dealer waits before the player forfeits his say
+BTN_BG = '#ffecb3'  # Standard background color for the buttons
+timer_visible = False  # Set to true if the timer is displayed
+PLAYERS_TURN = False  # Set to true whenever it's the player say
+timer_label = None  # Holder for the timer
+ROUND_IN_SESSION = False  # Set to true if cards are being dealt
 RESULT_LOSE_COLOR = "#990000"  # Background color of result label if the player loses
 RESULT_WIN_COLOR = 'gold'  # Background color of result label if the player wins
 NAT_DELAY_TIME = 1270  # Natural delay time between result label updates
@@ -32,11 +33,11 @@ player_bj = False  # True if the player got Blackjack
 card_back_image = ''  # Handler for the cards deck back graphic
 hole_card = ''  # Handler for dealer's hole card
 first_card_obj = ''  # Handler for dealer's hole card label
-hc_for_cheatsheet = ''
-is_cheatsheet_on = False
+hc_for_cheatsheet = ''  # The label that show's the dealer's hole card in the cheat sheet
+is_cheatsheet_on = False  # True if the cheat sheet is currently displayed
 card_frame_height = 0  # Handler for both card rows
 no_of_backs = 0  # Number of backs pictures provided in each set
-chosen_deck = 7  # The deck chosen in options by the player, assigned below
+chosen_deck = 5  # The deck chosen in options by the player, assigned below
 wanted_window_width = 0  # Wanted window width dependant on the chosen deck
 available_decks = {  # Dictionary containing all decks assigned by:
     # (Name for filepath, no_of_backs, card_frame_height,
@@ -165,12 +166,25 @@ def clear_table():
     player_bj = False
     move_to_discard_pile()
     reset_hitnstand_button()
-    dealer_card_frame.destroy()
-    player_card_frame.destroy()
-    dealer_card_frame = tkinter.Frame(card_frame, height=card_frame_height, background=FELT_COLOR)
-    dealer_card_frame.grid(row=0, column=1, sticky='ew', rowspan=2)
-    player_card_frame = tkinter.Frame(card_frame, height=card_frame_height, background=FELT_COLOR)
-    player_card_frame.grid(row=2, column=1, sticky='ew', rowspan=2)
+    hit_button['text'] = 'Clearing\nthe Table'
+    # working_dots()
+    for child in player_card_frame.winfo_children():
+        child.destroy()
+        PlaySound.PlaySound('sounds\\cardSlide1.wav', PlaySound.SND_FILENAME
+                            + PlaySound.SND_ASYNC)
+        create_delay(400)
+    for child in dealer_card_frame.winfo_children():
+        child.destroy()
+        PlaySound.PlaySound('sounds\\cardSlide1.wav', PlaySound.SND_FILENAME
+                            + PlaySound.SND_ASYNC)
+        create_delay(400)
+    shuffle_button['text'] = "Round in\nSession"
+    # dealer_card_frame.destroy()
+    # player_card_frame.destroy()
+    # dealer_card_frame = tkinter.Frame(card_frame, height=card_frame_height, background=FELT_COLOR)
+    # dealer_card_frame.grid(row=0, column=1, sticky='ew', rowspan=2)
+    # player_card_frame = tkinter.Frame(card_frame, height=card_frame_height, background=FELT_COLOR)
+    # player_card_frame.grid(row=2, column=1, sticky='ew', rowspan=2)
     player_score_label.set(0)
     dealer_score_label.set(0)
     result['bg'] = RESULT_BG_COLOR
@@ -182,12 +196,7 @@ def clear_table():
     player_score_no["font"] = font.Font(size=18)
     result_text.set("🂡🂫 Welcome to the BLACKJACK table! 🂫🂡")
     disable_buttons()
-    mainWindow.after(150, mainWindow.update())
-    if not deck_ready:
-        PlaySound.PlaySound('sounds\\cardClear.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
-        hit_button['text'] = 'Clearing\nthe Table'
-        working_dots()
-        shuffle_button['text'] = "Round in\nSession"
+    create_delay(150)
 
 
 def create_delay(delay_time):
@@ -212,42 +221,54 @@ def new_round_timer():
 
 def hide_action_timer():
     global timer_label
+    global timer_visible
     timer_label.destroy()
+    timer_visible = False
 
 
 def reset_action_timer():
     global timer_strvar
     global timer_label
+    global timer_visible
+    timer_visible = True
     reenable_buttons()
-    timer_label = tkinter.Label(player_card_frame, textvariable=timer_strvar,
-                                fg='white', width='2', bg='black',
-                                relief='raised',
-                                font=font.Font(size=26, weight='bold'))
+    # timer_label = tkinter.Label(player_card_frame, textvariable=timer_strvar,
+    #                             fg='white', width='2', bg='black',
+    #                             relief='raised',
+    #                             font=font.Font(size=26, weight='bold'))
+    seconds = ACTION_TIME
+    timer_bg = tkinter.PhotoImage(file="graphics\\{}.png".format(seconds))
+    timer_label = tkinter.Label(player_card_frame, image=timer_bg,
+                                bg=FELT_COLOR)
     timer_label.pack(side='left')
     timer_label.pack()
-    seconds = ACTION_TIME
-    timer_strvar.set(str(seconds))
+    # timer_strvar.set(str(seconds))
     mainWindow.update()
     while seconds > 0:
-        timer_strvar.set(str(seconds))
+        # timer_strvar.set(str(seconds))
+        timer_bg.config(file="graphics\\{}.png".format(seconds))
         create_delay(1000)
         seconds -= 1
-        if seconds == 8:
+        if seconds == 12:
             PlaySound.PlaySound('sounds\\hurry_up.wav',
                                 PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
-            timer_label['bg'] = 'gold'
-            timer_label['fg'] = 'black'
+            # timer_label['bg'] = 'gold'
+            # timer_label['fg'] = 'black'
         if seconds <= 5:
             PlaySound.PlaySound('sounds\\{}.wav'.format(seconds),
                                 PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
-            timer_label['bg'] = 'white'
-            timer_label['fg'] = 'red'
+            # timer_label['bg'] = 'white'
+            # timer_label['fg'] = 'red'
         if not PLAYERS_TURN:
             break
     if PLAYERS_TURN and seconds <= 0:
         disable_buttons()
         mainWindow.update()
+    if player_score_label.get() <= 16:
         deal_player()
+    else:
+        hide_action_timer()
+        deal_dealer()
 
 
 def reset_counted():
@@ -399,8 +420,8 @@ def deal_card(frame, hand):
     PlaySound.PlaySound('sounds\\cardPlace{}.wav'.format(random.randint(1, 13)),
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     create_delay(300)
-    card_obj = tkinter.Label(frame, image=next_card[1], borderwidth=0, relief='raised',
-                             background=FELT_COLOR)
+    card_obj = tkinter.Label(frame, image=next_card[1], borderwidth=0,
+                             relief='raised', background=FELT_COLOR)
     card_obj.pack(side='left', padx=(1, 3), pady=(1, 3))
     card_obj.pack_propagate(0)
     update_notif(hand, next_card)
@@ -442,7 +463,7 @@ def flip_hole_card():
     create_delay(300)
     first_card_obj['image'] = hole_card[1]
     if hole_card[0] == 1:
-        result_text.set("Dealer's hole was the {}{}. Value of 11."
+        result_text.set("Dealer's hole card was the {}{}. Value of 11."
                         .format(hole_card[3], hole_card[2]))
     else:
         result_text.set("Dealer's hole card was the {}{}. Value of {}."
@@ -464,8 +485,10 @@ def deal_dealer():
     global PLAYERS_TURN
     global hand_is_soft
     global timer_strvar
+    global timer_visible
     PLAYERS_TURN = False
-    hide_action_timer()
+    if timer_visible:
+        hide_action_timer()
     disable_buttons()
     timer_strvar.set(str(ACTION_TIME))
     hand_is_soft = False
@@ -560,7 +583,8 @@ def deal_player():
     global player_bj
     global ROUND_IN_SESSION
     global PLAYERS_TURN
-    if PLAYERS_TURN:
+    global timer_visible
+    if PLAYERS_TURN and timer_visible:
         hide_action_timer()
     next_card = deal_card(player_card_frame, player_hand)
     player_hand.append(next_card)
@@ -572,7 +596,8 @@ def deal_player():
             disable_buttons()
             ROUND_IN_SESSION = False
             PLAYERS_TURN = False
-            hide_action_timer()
+            # if timer_visible:
+            #     hide_action_timer()
             create_delay(NAT_DELAY_TIME)
             result_text.set("21! Congratulations! Dealer will now try to match.")
             hit_button['text'] = '2'
@@ -583,13 +608,12 @@ def deal_player():
         elif player_score > 21:  # To disable buttons before all delays
             disable_buttons()
             create_delay(NAT_DELAY_TIME)
-        else:
-            create_delay(NAT_DELAY_TIME)
 
         if player_score > 21:
             ROUND_IN_SESSION = False
             PLAYERS_TURN = False
-            hide_action_timer()
+            # if timer_visible:
+            #     hide_action_timer()
             reset_shuffle_btn()
             result_text.set("Player busts! Dealer wins! Better luck next round!")
             player_lost()
@@ -600,7 +624,8 @@ def deal_player():
 
         if PLAYERS_TURN:
             reset_action_timer()
-            mainWindow.update()
+
+        create_delay(NAT_DELAY_TIME)
 
 
 def player_won():
@@ -611,7 +636,7 @@ def player_won():
     result['fg'] = 'navy'
     player_score_no["font"] = font.Font(size=21, weight='bold')
     player_score_no['fg'] = WIN_COLOR
-    PlaySound.PlaySound('sounds\\win.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+    PlaySound.PlaySound('sounds\\win_.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     mainWindow.update()
 
 
@@ -622,7 +647,7 @@ def player_lost():
     dealer_score_no["font"] = font.Font(size=21, weight='bold')
     dealer_score_no['fg'] = WIN_COLOR
     player_score_no['fg'] = LOSE_COLOR
-    PlaySound.PlaySound('sounds\\lose.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
+    PlaySound.PlaySound('sounds\\you_lose.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     disable_buttons()
     mainWindow.update()
 
@@ -680,8 +705,8 @@ def first_play():
         result_text.set("Dealer drew his hole card.\t\tYour turn...")
         cheat_sheet(hole_card)
         hc_for_cheatsheet = tkinter.Label(
-            secondWindow, text="Hole card is {}{}"
-                .format(hole_card[3], hole_card[2]),
+            secondWindow, text="Dealer's hole card is {}{}"
+            .format(hole_card[3], hole_card[2]),
             background=RESULT_WIN_COLOR)
         hc_for_cheatsheet.grid(column=0, row=16, sticky='nw')
         PLAYERS_TURN = True
@@ -690,6 +715,8 @@ def first_play():
         reset_action_timer()
     else:
         result_text.set("Blackjack! Congratulations! Dealer will now try to match.")
+        PlaySound.PlaySound('sounds\\congratulations.wav',
+                            PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
         hit_button['text'] = 'BLACK'
         stand_button['text'] = 'JACK'
         disable_buttons()
@@ -756,11 +783,13 @@ def say_goodbye():
     # mainWindow.config(background=result['bg'])
     result['fg'] = "#99ccff"
     result_text.set("Goodbye! See you next time! :)")
+
     if not is_cheatsheet_on:
         secondWindow.update()
     create_delay(NAT_DELAY_TIME)
-    secondWindow.destroy()
     mainWindow.destroy()
+    secondWindow.destroy()
+    quit()
 
 
 dealer_hand = []

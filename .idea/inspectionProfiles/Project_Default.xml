@@ -14,6 +14,7 @@
         <list>
           <option value="str.__setitem__" />
           <option value="str.destroy" />
+          <option value="dict.items" />
         </list>
       </option>
     </inspection_tool>

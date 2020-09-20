@@ -2,6 +2,7 @@ try:
     import tkinter
 except ImportError:
     import Tkinter as tkinter
+import atexit
 import random
 import tkinter.font as font
 
@@ -33,12 +34,13 @@ player_bj = False  # True if the player got Blackjack
 cleanup = False  # True if the player left the table, breaks all timer loops
 card_back_image = ''  # Handler for the cards deck back graphic
 hole_card = ''  # Handler for dealer's hole card
+suit_label = ''
+hc_suit_label = ''
 first_card_obj = ''  # Handler for dealer's hole card label
 hc_for_cheatsheet = ''  # The label that show's the dealer's hole card in the cheat sheet
 is_cheatsheet_on = False  # True if the cheat sheet is currently displayed
 card_frame_height = 0  # Handler for both card rows
 no_of_backs = 0  # Number of backs pictures provided in each set
-counted = {}  # Dictionary containing the cheatsheet stats
 chosen_deck = 5  # The deck chosen in options by the player, assigned below
 wanted_window_width = 0  # Wanted window width dependant on the chosen deck
 available_decks = {  # Dictionary containing all decks assigned by:
@@ -51,6 +53,21 @@ available_decks = {  # Dictionary containing all decks assigned by:
     5: ("bicycle", 3, 164, 115 * 7 + 90),
     6: ("broadwalk", 1, 164, 115 * 7 + 90),
     7: ("charlie", 2, 164, 115 * 7 + 90)
+}
+counted = {  # Dictionary containing the cheatsheet stats
+    'A': '0',
+    '2': '0',
+    '3': '0',
+    '4': '0',
+    '5': '0',
+    '6': '0',
+    '7': '0',
+    '8': '0',
+    '9': '0',
+    '10': '0',
+    'J': '0',
+    'Q': '0',
+    'K': '0'
 }
 
 
@@ -113,6 +130,16 @@ def enable_buttons():
         stand_button['state'] = hit_button['state'] = 'disabled'
         leave_button['state'] = ch_button['state'] = 'normal'
         new_game['state'] = shuffle_button['state'] = 'normal'
+
+
+def invert_color(item, color):  # Invert color
+    if type(color) == str:
+        rgb = item.winfo_rgb(color)
+    else:
+        rgb = color
+    rgb = (65535 - rgb[0], 65535 - rgb[1], 65535 - rgb[2])
+    tk_rgb = "#%04x%04x%04x" % rgb
+    return tk_rgb
 
 
 def working_dots():  # TODO: Requires Threading
@@ -179,6 +206,7 @@ def clear_table():
     dealer_score_no["font"] = font.Font(size=18)
     player_score_no["font"] = font.Font(size=18)
     result_text.set("🂡🂫 Welcome to the BLACKJACK table! 🂫🂡")
+    print("Clearing the table...")
     hit_button['text'] = 'Clearing\nthe Table'
     # working_dots()  TODO: THREAD THIS
     while player_card_frame.winfo_children() or dealer_card_frame.winfo_children():
@@ -286,9 +314,27 @@ def reset_counted():
             counted[card[3]] = str(int(counted[card[3]]) + 1)
 
     row_counter = 0
-    for child in secondWindow.winfo_children():
-        if child is not hc_for_cheatsheet:
-            child.destroy()
+    for key, value in counted.items():
+        secondWindow.winfo_children()[row_counter]['text'] = "{:<3} : {:>3}".format(key, value)
+        row_counter += 1
+    if is_cheatsheet_on:
+        secondWindow.update()
+    total = 0
+    for value in counted.values():
+        total += int(value)
+    secondWindow.winfo_children()[row_counter]['text'] = "{} left in the deck.".format(total)
+    suit_label['text'] = '{}{}'.format(deck[0][3], deck[0][2])
+    if deck[0][2] in '♥♦':
+        suit_label['fg'] = "red"
+    else:
+        suit_label['fg'] = "black"
+    if not is_cheatsheet_on:
+        secondWindow.update()
+
+
+def init_cheatsheet():
+    global suit_label
+    row_counter = 0
     for key, value in counted.items():
         tkinter.Label(secondWindow, text="{:<3} : {:>3}".format(key, value),
                       background=RESULT_WIN_COLOR) \
@@ -303,9 +349,17 @@ def reset_counted():
                   background=RESULT_WIN_COLOR) \
         .grid(column=0, row=row_counter, sticky='nw')
     row_counter += 1
-    tkinter.Label(secondWindow, text="Top card in the deck is {}{}".format(deck[0][3], deck[0][2]),
+    tkinter.Label(secondWindow, text="Top card in the deck is ",
                   background=RESULT_WIN_COLOR) \
         .grid(column=0, row=row_counter, sticky='nw')
+    suit_label = tkinter.Label(secondWindow,
+                               text="{}{}".format(deck[0][3], deck[0][2]),
+                               background=RESULT_WIN_COLOR)
+    suit_label.grid(column=1, row=row_counter, sticky='nw')
+    if deck[0][2] in '♥♦':
+        suit_label['fg'] = "red"
+    else:
+        suit_label['fg'] = "black"
     if not is_cheatsheet_on:
         secondWindow.update()
 
@@ -321,7 +375,7 @@ def new_round():
     if not is_cheatsheet_on:
         secondWindow.update()
     clear_table()
-
+    print("New round commencing. Dealing cards.")
     # Deal first cards
     first_play()
 
@@ -344,10 +398,6 @@ def refill_deck_if_empty():
             deck_is_empty = False
             break
     if deck_is_empty:
-        player_score = score_hand(player_hand)
-        dealer_score = score_hand(dealer_hand)
-        dealer_score_label.set(dealer_score)
-        player_score_label.set(player_score)
         create_delay(NAT_DELAY_TIME)
         random.shuffle(discard_pile)
         for card in discard_pile:
@@ -380,13 +430,7 @@ def cheat_sheet(card):
     global hc_for_cheatsheet
     counted[card[3]] = str(int(counted[card[3]]) - 1)
     row_counter = 0
-    # for child in secondWindow.winfo_children():
-    #     if child is not hc_for_cheatsheet:
-    #         child.destroy()
     for key, value in counted.items():
-        # tkinter.Label(secondWindow, text="{:<3} : {:>3}".format(key, value),
-        #               background=RESULT_WIN_COLOR) \
-        #     .grid(column=0, row=row_counter, sticky='nw')
         secondWindow.winfo_children()[row_counter]['text'] = "{:<3} : {:>3}".format(key, value)
         row_counter += 1
     if is_cheatsheet_on:
@@ -396,9 +440,11 @@ def cheat_sheet(card):
         total += int(value)
     secondWindow.winfo_children()[row_counter]['text'] = "{} left in the deck.".format(total)
     refill_deck_if_empty()
-    row_counter += 1
-    secondWindow.winfo_children()[row_counter]['text'] = \
-        "Top card in the deck is {}{}".format(deck[0][3], deck[0][2])
+    suit_label['text'] = '{}{}'.format(deck[0][3], deck[0][2])
+    if deck[0][2] in '♥♦':
+        suit_label['fg'] = "red"
+    else:
+        suit_label['fg'] = "black"
     if not is_cheatsheet_on:
         secondWindow.update()
 
@@ -417,7 +463,6 @@ def deal_card(frame, hand):
     card_obj.pack(side='left', padx=(1, 3), pady=(1, 3))
     card_obj.pack_propagate(0)
     update_notif(hand, next_card)
-    cheat_sheet(next_card)
     # now return the card's face value
     return next_card
 
@@ -450,6 +495,7 @@ def flip_hole_card():
     global hc_for_cheatsheet
     dealer_hand.append(hole_card)
     hc_for_cheatsheet.destroy()
+    hc_suit_label.destroy()
     PlaySound.PlaySound('sounds\\cardFlip.wav',
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     create_delay(300)
@@ -461,6 +507,7 @@ def flip_hole_card():
         result_text.set("Dealer's hole card was the {}{}. Value of {}."
                         .format(hole_card[3], hole_card[2], hole_card[0]))
     dealer_score = score_hand(dealer_hand)
+    print("{} Current score - {}.".format(result_text.get(), dealer_score))
     dealer_score_label.set(dealer_score)
 
 
@@ -479,12 +526,12 @@ def deal_dealer():
     global timer_strvar
     global timer_visible
     PLAYERS_TURN = False
+    hand_is_soft = False
     if timer_visible:
         hide_action_timer()
     disable_buttons()
-    timer_strvar.set(str(ACTION_TIME))
-    hand_is_soft = False
     if not player_bj:
+        print("Player chose to stand on {}. Dealer's turn.".format(player_score_label.get()))
         flip_hole_card()
     create_delay(NAT_DELAY_TIME)
     dealer_score = score_hand(dealer_hand)
@@ -492,9 +539,11 @@ def deal_dealer():
         if dealer_score == dealerstand_score:
             if dealer_hits_on_soft and hand_is_soft:
                 result_text.set("Soft {}. Dealer must keep hitting.".format(dealerstand_score))
+                print(result_text.get())
                 create_delay(NAT_DELAY_TIME)
             else:
                 result_text.set("Dealer will stand on or above {}.".format(dealerstand_score))
+                print("The Dealer's final score is {}.".format(dealer_score))
                 create_delay(NAT_DELAY_TIME)
                 ROUND_IN_SESSION = False
                 break
@@ -502,9 +551,12 @@ def deal_dealer():
         dealer_hand.append(next_card)
         dealer_score = score_hand(dealer_hand)
         dealer_score_label.set(dealer_score)
+        print("{} Current score - {}.".format(result_text.get(), dealer_score))
+        cheat_sheet(next_card)
         create_delay(NAT_DELAY_TIME)
     if 21 > dealer_score > dealerstand_score:
         result_text.set("Dealer will stand on or above {}.".format(dealerstand_score))
+        print("The Dealer's final score is {}.".format(dealer_score))
         create_delay(NAT_DELAY_TIME)
     player_score = score_hand(player_hand)
     check_final(player_score, dealer_score)
@@ -523,17 +575,20 @@ def check_final(player_score, dealer_score):
         result_text.set("Player wins!")
         player_won()
     elif dealer_score > player_score:
-        player_lost()
-        if len(dealer_hand) == 2 and dealer_score == 21:
+        if check_for_bj(dealer_hand, dealer_score):
             result_text.set("Blackjack! Dealer wins! Better luck next round!")
+            flash_widgets(6, RESULT_LOSE_COLOR, 'black', result, hit_button, stand_button)
         else:
             result_text.set("Dealer wins! Better luck next round!")
+        player_lost()
     else:
         result_text.set("Draw!")
         dealer_score_no['fg'] = player_score_no['fg'] = WIN_COLOR
         dealer_score_no["font"] = font.Font(size=21, weight='bold')
         player_score_no["font"] = font.Font(size=21, weight='bold')
         sound_draw()
+    print("{} The score was {} - {}.".format(
+        result_text.get(), player_score, dealer_score))
     enable_buttons()
     reset_shuffle_btn()
     new_round_timer()
@@ -582,20 +637,22 @@ def deal_player():
     player_hand.append(next_card)
     player_score = score_hand(player_hand)
     player_score_label.set(player_score)
+    print("{} Current score - {}.".format(result_text.get(), player_score))
+    cheat_sheet(next_card)
     player_bj = check_for_bj(player_hand, player_score)
     if not player_bj:
         if player_score == 21:
             disable_buttons()
             ROUND_IN_SESSION = False
             PLAYERS_TURN = False
-            # if timer_visible:
-            #     hide_action_timer()
             create_delay(NAT_DELAY_TIME)
             result_text.set("21! Congratulations! Dealer will now try to match.")
+            print(result_text.get())
             hit_button['text'] = '2'
             stand_button['text'] = '1'
             player_score_no['fg'] = WIN_COLOR
             create_delay(NAT_DELAY_TIME)
+            reset_hitnstand_button()
             deal_dealer()
         elif player_score > 21:  # To disable buttons before all delays
             disable_buttons()
@@ -608,6 +665,7 @@ def deal_player():
             #     hide_action_timer()
             reset_shuffle_btn()
             result_text.set("Player busts! Dealer wins! Better luck next round!")
+            print(result_text.get())
             player_lost()
             mainWindow.after(NAT_DELAY_TIME * 2, mainWindow.update())
             flip_hole_card()
@@ -630,6 +688,8 @@ def player_won():
     player_score_no['fg'] = WIN_COLOR
     PlaySound.PlaySound('sounds\\win_.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     mainWindow.update()
+    create_delay(NAT_DELAY_TIME)
+    reset_hitnstand_button()
 
 
 def player_lost():
@@ -642,10 +702,11 @@ def player_lost():
     PlaySound.PlaySound('sounds\\you_lose.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     disable_buttons()
     mainWindow.update()
+    create_delay(NAT_DELAY_TIME)
+    reset_hitnstand_button()
 
 
 def sound_draw():
-    mainWindow.update()
     PlaySound.PlaySound('sounds\\draw.wav', PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     mainWindow.update()
 
@@ -659,6 +720,7 @@ def first_play():
     global dealer_score_label
     global hole_card
     global hc_for_cheatsheet
+    global hc_suit_label
     global first_card_obj
 
     if not cleanup:
@@ -676,12 +738,10 @@ def first_play():
             dealer_score_label.set(11)
         else:
             dealer_score_label.set(next_card[0])
-        if not next_card[3] == 'A':
-            result_text.set("Dealer drew the {}{}. With a value of {}."
-                            .format(next_card[3], next_card[2], next_card[0]))
-        else:
-            result_text.set("Dealer drew the {}{}. With a value of 11."
-                            .format(next_card[3], next_card[2]))
+        print("{} Current score - {}.".format(result_text.get(), dealer_score_label.get()))
+        # result_text.set("Dealer drew the {}{}. With a value of {}."
+        #                 .format(next_card[3], next_card[2], next_card[0]))
+        cheat_sheet(next_card)
         create_delay(NAT_DELAY_TIME)
         deal_player()
         if not player_bj:
@@ -699,26 +759,58 @@ def first_play():
                 background=FELT_COLOR)
             first_card_obj.pack(side='left', padx=(1, 3), pady=(1, 3))
             result_text.set("Dealer drew his hole card.\t\tYour turn...")
-            cheat_sheet(hole_card)
+            print(result_text.get())
+            ch_last_row = len(secondWindow.winfo_children())
             hc_for_cheatsheet = tkinter.Label(
-                secondWindow, text="Dealer's hole card is {}{}"
-                .format(hole_card[3], hole_card[2]),
+                secondWindow, text="Dealer's hole card is",
                 background=RESULT_WIN_COLOR)
-            hc_for_cheatsheet.grid(column=0, row=16, sticky='nw')
+            hc_for_cheatsheet.grid(column=0, row=ch_last_row, sticky='nw')
+            hc_suit_label = tkinter.Label(secondWindow, text="{}{}"
+                                          .format(hole_card[3], hole_card[2]),
+                                          background=RESULT_WIN_COLOR)
+            hc_suit_label.grid(column=1, row=ch_last_row,
+                               sticky='nw')
+            if hole_card[2] in '♥♦':
+                hc_suit_label['fg'] = "red"
+            else:
+                hc_suit_label['fg'] = "black"
+            if not is_cheatsheet_on:
+                secondWindow.update()
+            cheat_sheet(hole_card)
             PLAYERS_TURN = True
             reset_hitnstand_button()
             enable_buttons()
             reset_action_timer()
         else:
             result_text.set("Blackjack! Congratulations! Dealer will now try to match.")
+            print(result_text.get())
+            flash_widgets(6, '#bf40bf', 'white', result, hit_button, stand_button)
             PlaySound.PlaySound('sounds\\congratulations.wav',
                                 PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
             hit_button['text'] = 'BLACK'
             stand_button['text'] = 'JACK'
             disable_buttons()
             player_score_no['fg'] = WIN_COLOR
-            create_delay(NAT_DELAY_TIME)
             deal_dealer()
+
+
+def flash_widgets(times, color1, color2, *items):
+    temp = []
+    for item in items:
+        temp.append((item['fg'], item['bg']))
+    for i in range(1, times + 1):
+        for item in items:
+            item['bg'] = color1
+            item['fg'] = invert_color(item, color1)
+        create_delay(400 / times)
+        for item in items:
+            item['bg'] = color2
+            item['fg'] = invert_color(item, color2)
+        create_delay(400 / times)
+    create_delay(200)
+    for item in items:
+        item['fg'] = temp[items.index(item)][0]
+        item['bg'] = temp[items.index(item)][1]
 
 
 def shuffle():
@@ -731,6 +823,7 @@ def shuffle():
         deck.append(card)
     discard_pile.clear()
     random.shuffle(deck)
+    print("Shuffling the deck...")
     hit_button['text'] = 'Shuffling'
     PlaySound.PlaySound('sounds\\riffle{}.wav'.format(random.randint(1, 4)),
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
@@ -759,7 +852,8 @@ def start_game():
     ROUND_IN_SESSION = True
     disable_buttons()
     hide_cheatsheet()
-    reset_counted()
+    init_cheatsheet()
+    # reset_counted()
     mainWindow.after(1, lambda: mainWindow.focus_force())
     PlaySound.PlaySound('sounds\\cardOpenPackage{}.wav'.format(random.randint(1, 2)),
                         PlaySound.SND_FILENAME)
@@ -768,6 +862,7 @@ def start_game():
     PlaySound.PlaySound('sounds\\cardFan{}.wav'.format(random.randint(1, 2)),
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     deck_ready = False
+    print("First round commencing")
     shuffle()
     mainWindow.mainloop()
     secondWindow.mainloop()
@@ -775,17 +870,14 @@ def start_game():
 
 def say_goodbye():
     global cleanup
-
     disable_buttons()
-    result['bg'] = "#bf40bf"
-    # mainWindow.config(background=result['bg'])
-    result['fg'] = "#99ccff"
     result_text.set("Goodbye! See you next time! :)")
+    print(result_text.get())
     PlaySound.PlaySound("sounds\\later{}.wav".format(random.randint(1, 4)),
                         PlaySound.SND_FILENAME + PlaySound.SND_ASYNC)
     if not is_cheatsheet_on:
         secondWindow.update()
-    create_delay(NAT_DELAY_TIME)
+    create_delay(990)
     cleanup = True
     quit()
 
@@ -892,7 +984,7 @@ stand_button = tkinter.Button(button_frame, text='STAND',
 stand_button.grid(row=0, column=3, rowspan=2, sticky='nws')
 button_frame.columnconfigure(1, minsize=20)
 button_frame.columnconfigure(2, minsize=20)
-
+atexit.register(say_goodbye)
 mainWindow.update()
 mainWindow.geometry("{}x{}+265+100".format(wanted_window_width, button_frame.winfo_height() + result.winfo_height() +
                                            5 + int(card_frame_height * 2)))
